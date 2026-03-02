@@ -1,0 +1,246 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 340px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  color: #1a1a2e;
+  background: #fafafa;
+}
+
+.container {
+  padding: 16px;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.header h1 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: #666;
+  border-radius: 4px;
+}
+
+.icon-btn:hover {
+  background: #eee;
+  color: #333;
+}
+
+/* Status Bar */
+.status-bar {
+  background: #f0f0f5;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: #555;
+  text-align: center;
+}
+
+.status-bar.active {
+  background: #e8f4fd;
+  color: #1a73e8;
+}
+
+.status-bar.error {
+  background: #fde8e8;
+  color: #d32f2f;
+}
+
+.status-bar.done {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+/* Controls */
+.controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #1a73e8;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #1557b0;
+}
+
+.btn-secondary {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #d0d0d0;
+}
+
+.btn-danger {
+  background: #f5e6e6;
+  color: #d32f2f;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #f0d0d0;
+}
+
+/* Quick Read Toggle */
+.quick-read-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #666;
+  cursor: pointer;
+  margin-bottom: 8px;
+  padding: 0 2px;
+}
+
+.quick-read-toggle input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+/* Playback Note */
+.playback-note {
+  text-align: center;
+  font-size: 11px;
+  color: #999;
+  margin-bottom: 10px;
+}
+
+/* Cost Summary */
+.cost-summary {
+  background: #f5f5ff;
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.cost-summary h3 {
+  font-size: 13px;
+  margin-bottom: 8px;
+  color: #444;
+}
+
+.cost-summary .cost-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #666;
+  padding: 2px 0;
+}
+
+.cost-summary .cost-total {
+  border-top: 1px solid #ddd;
+  margin-top: 6px;
+  padding-top: 6px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Error */
+.error-display {
+  background: #fde8e8;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #d32f2f;
+}
+
+/* Settings */
+#settingsView h2 {
+  font-size: 16px;
+  margin-bottom: 14px;
+}
+
+.field {
+  margin-bottom: 12px;
+}
+
+.field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 4px;
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  background: white;
+}
+
+.field input:focus,
+.field select:focus,
+.field textarea:focus {
+  outline: none;
+  border-color: #1a73e8;
+  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.15);
+}
+
+.field .warning {
+  display: block;
+  font-size: 11px;
+  color: #e67e22;
+  margin-top: 3px;
+}
+
+.settings-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Utility */
+.hidden {
+  display: none !important;
+}

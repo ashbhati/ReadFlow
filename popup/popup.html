@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https://api.openai.com; media-src blob:; style-src 'self';">
+  <title>ReadFlow</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <h1>ReadFlow</h1>
+      <button id="settingsBtn" class="icon-btn" title="Settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Main View -->
+    <div id="mainView">
+      <div id="statusBar" class="status-bar">Ready to read</div>
+
+      <div class="controls">
+        <button id="playBtn" class="btn btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+          Play
+        </button>
+        <button id="pauseBtn" class="btn btn-secondary" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          Pause
+        </button>
+        <button id="stopBtn" class="btn btn-danger" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
+          Stop
+        </button>
+      </div>
+
+      <label class="quick-read-toggle">
+        <input type="checkbox" id="quickReadCheckbox">
+        <span>Quick Read (skip AI cleaning)</span>
+      </label>
+
+      <div class="playback-note">Keep this popup open during playback.</div>
+
+      <div id="costSummary" class="cost-summary hidden">
+        <h3>Session Cost</h3>
+        <div id="costDetails"></div>
+      </div>
+
+      <div id="errorDisplay" class="error-display hidden"></div>
+    </div>
+
+    <!-- Settings View -->
+    <div id="settingsView" class="hidden">
+      <h2>Settings</h2>
+
+      <div class="field">
+        <label for="apiKeyInput">OpenAI API Key</label>
+        <input type="password" id="apiKeyInput" placeholder="sk-...">
+        <small class="warning">Stored locally in your browser. Never shared.</small>
+      </div>
+
+      <div class="field">
+        <label for="chatModelSelect">Chat Model</label>
+        <select id="chatModelSelect"></select>
+      </div>
+
+      <div class="field">
+        <label for="ttsModelSelect">TTS Model</label>
+        <select id="ttsModelSelect"></select>
+      </div>
+
+      <div class="field">
+        <label for="voiceSelect">Voice</label>
+        <select id="voiceSelect"></select>
+      </div>
+
+      <div class="field">
+        <label for="maxLengthInput">Max Content Length (chars)</label>
+        <input type="number" id="maxLengthInput" min="1000" max="200000" step="1000">
+      </div>
+
+      <div class="field">
+        <label for="blocklistInput">Domain Blocklist (one per line)</label>
+        <textarea id="blocklistInput" rows="3" placeholder="example.com&#10;another.com"></textarea>
+      </div>
+
+      <div class="settings-actions">
+        <button id="saveSettingsBtn" class="btn btn-primary">Save</button>
+        <button id="cancelSettingsBtn" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
