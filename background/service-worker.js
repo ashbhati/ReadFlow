@@ -1,6 +1,8 @@
 import { extractWithChat } from '../lib/openai-chat.js';
 import { calculateCost } from '../lib/cost.js';
-import { DEFAULTS, STATES, TTS_MAX_CHARS, GPT_INPUT_CAP } from '../lib/constants.js';
+import { chunkText } from '../lib/chunker.js';
+import { generateCacheKey, clearCache } from '../lib/audio-cache.js';
+import { DEFAULTS, STATES, TTS_MAX_CHARS, GPT_INPUT_CAP, SUMMARY_PROMPT } from '../lib/constants.js';
 
 let state = {
   status: STATES.IDLE,
@@ -12,6 +14,9 @@ let state = {
 let settings = {};
 let aborted = false;
 let isRunning = false;
+
+// Pre-fetch state
+let prefetchedData = null;
 
 // Load settings from storage
 async function loadSettings() {
@@ -59,14 +64,32 @@ function resetState() {
   aborted = false;
 }
 
+// Ensure offscreen document exists
+async function ensureOffscreen() {
+  const contexts = await chrome.runtime.getContexts({
+    contextTypes: ['OFFSCREEN_DOCUMENT'],
+  });
+  if (contexts.length === 0) {
+    await chrome.offscreen.createDocument({
+      url: 'offscreen/offscreen.html',
+      reasons: ['AUDIO_PLAYBACK'],
+      justification: 'TTS audio playback that survives popup close',
+    });
+  }
+}
+
 // Main pipeline
-async function startReading(tabId, tabUrl, quickRead = false) {
+async function startReading(tabId, tabUrl, quickRead = false, summaryMode = false) {
   if (isRunning) return;
   isRunning = true;
 
   try {
     resetState();
     settings = await loadSettings();
+
+    // Fire-and-forget: start loading offscreen document early so its script
+    // is ready by the time we need it (extraction + GPT takes seconds)
+    const offscreenReady = ensureOffscreen();
 
     // Check API key
     if (!settings.apiKey) {
@@ -96,20 +119,29 @@ async function startReading(tabId, tabUrl, quickRead = false) {
       }
     }
 
-    // Step 1: Extract content
-    updateState({ status: STATES.EXTRACTING, detail: 'Extracting page content...' });
+    let chatResult;
+    let cleanedText;
 
+    // Step 1: Extract content (use prefetched if available)
     let extracted;
-    try {
-      const results = await chrome.scripting.executeScript({
-        target: { tabId },
-        files: ['content/content-script.js'],
-      });
-      extracted = results?.[0]?.result;
-      if (aborted) return;
-    } catch (e) {
-      sendError('INJECTION_FAILED', 'Cannot access this page. It may be a protected browser page.');
-      return;
+    if (prefetchedData && prefetchedData.tabUrl === tabUrl && prefetchedData.extracted) {
+      extracted = prefetchedData.extracted;
+      prefetchedData = null;
+    } else {
+      prefetchedData = null;
+      updateState({ status: STATES.EXTRACTING, detail: 'Grabbing page content...' });
+
+      try {
+        const results = await chrome.scripting.executeScript({
+          target: { tabId },
+          files: ['content/content-script.js'],
+        });
+        extracted = results?.[0]?.result;
+        if (aborted) return;
+      } catch (e) {
+        sendError('INJECTION_FAILED', 'Cannot access this page. It may be a protected browser page.');
+        return;
+      }
     }
 
     if (!extracted || extracted.error) {
@@ -123,34 +155,34 @@ async function startReading(tabId, tabUrl, quickRead = false) {
       rawContent = rawContent.slice(0, settings.maxContentLength);
     }
 
-    let chatResult;
-    let cleanedText;
-    let truncated = false;
-
     if (quickRead) {
       if (aborted) return;
-      // Quick Read: skip GPT, send extracted text directly to TTS
       cleanedText = rawContent;
       if (!cleanedText || cleanedText.trim().length < 20) {
-        sendError('EMPTY_RESULT', 'Page content is too short or empty to read.');
+        sendError('EMPTY_RESULT', 'Nothing to read — the page seems empty.');
         return;
-      }
-      if (cleanedText.length > TTS_MAX_CHARS) {
-        cleanedText = cleanedText.slice(0, TTS_MAX_CHARS);
-        truncated = true;
       }
       chatResult = { usage: { promptTokens: 0, completionTokens: 0 } };
     } else {
-      // Cap content for GPT — TTS limit is 4096 chars, so no need to clean more than ~8K
+      // Cap content for GPT
       if (rawContent.length > GPT_INPUT_CAP) {
         rawContent = rawContent.slice(0, GPT_INPUT_CAP);
       }
 
       // Step 2: LLM extraction
-      updateState({ status: STATES.PROCESSING, detail: 'Cleaning content with AI...' });
+      const statusDetail = summaryMode ? 'Summarizing key insights...' : 'Preparing your article...';
+      updateState({ status: STATES.PROCESSING, detail: statusDetail });
+
+      const chatOpts = {};
+      if (summaryMode) {
+        chatOpts.systemPrompt = SUMMARY_PROMPT;
+      }
+      chatOpts.onRetry = () => {
+        updateState({ detail: 'Hmm, trying again...' });
+      };
 
       try {
-        chatResult = await extractWithChat(settings.apiKey, rawContent, settings.chatModel);
+        chatResult = await extractWithChat(settings.apiKey, rawContent, settings.chatModel, chatOpts);
       } catch (e) {
         sendError('CHAT_ERROR', e.message);
         return;
@@ -160,17 +192,13 @@ async function startReading(tabId, tabUrl, quickRead = false) {
 
       cleanedText = chatResult.text;
       if (!cleanedText || cleanedText.length < 20) {
-        sendError('EMPTY_RESULT', 'AI returned very little content. The page may not have readable article text.');
+        sendError('EMPTY_RESULT', 'Nothing to read — couldn\'t find article content.');
         return;
-      }
-
-      // Step 3: Truncate to TTS max chars if needed
-      if (cleanedText.length > TTS_MAX_CHARS) {
-        cleanedText = cleanedText.slice(0, TTS_MAX_CHARS);
-        truncated = true;
       }
     }
 
+    // Step 3: Chunk text for TTS
+    const chunks = chunkText(cleanedText, TTS_MAX_CHARS);
     const ttsCharacters = cleanedText.length;
 
     // Step 4: Calculate cost
@@ -181,38 +209,75 @@ async function startReading(tabId, tabUrl, quickRead = false) {
       ttsCharacters,
     );
 
-    // Step 5: Send cleaned text to popup for TTS + playback
+    // Step 5: Run cache key, speed lookup, and offscreen readiness in parallel
+    const [cacheKey, speedResult] = await Promise.all([
+      generateCacheKey(tabUrl || '', cleanedText).catch(() => null),
+      chrome.storage.local.get(['playbackSpeed']),
+      offscreenReady,
+    ]);
+    const playbackSpeed = speedResult.playbackSpeed || DEFAULTS.playbackSpeed;
+
+    // Step 6: Send to offscreen for TTS + playback
     updateState({
       status: STATES.PLAYING,
-      detail: 'Ready for audio',
+      detail: chunks.length > 1 ? `Playing — part 1 of ${chunks.length}` : 'Playing',
       usage: chatResult.usage,
       cost: costInfo,
     });
 
     chrome.runtime.sendMessage({
-      type: 'GENERATE_AND_PLAY',
+      type: 'OFFSCREEN_TTS_PLAY',
+      chunks,
       cleanedText,
       ttsModel: settings.ttsModel,
       voice: settings.voice,
       apiKey: settings.apiKey,
-      cost: costInfo,
-      truncated,
+      playbackSpeed,
+      cacheKey,
+      url: tabUrl,
     }).catch(() => {});
   } finally {
     isRunning = false;
   }
 }
 
-// Message handler (popup -> background)
+// Pre-fetch pipeline: extract page content only (no GPT call)
+// This saves ~1-2s on Play by having raw content ready
+async function prefetch(tabId, tabUrl) {
+  try {
+    settings = await loadSettings();
+
+    let extracted;
+    try {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId },
+        files: ['content/content-script.js'],
+      });
+      extracted = results?.[0]?.result;
+    } catch (e) {
+      return;
+    }
+
+    if (!extracted || extracted.error) return;
+
+    prefetchedData = { tabUrl, extracted };
+  } catch (e) {
+    prefetchedData = null;
+  }
+}
+
+// Message handler
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   switch (msg.type) {
     case 'START_READING':
-      startReading(msg.tabId, msg.tabUrl, msg.quickRead);
+      startReading(msg.tabId, msg.tabUrl, msg.quickRead, msg.summaryMode);
       sendResponse({ ok: true });
       return false;
 
     case 'STOP':
       aborted = true;
+      // Also stop offscreen audio
+      chrome.runtime.sendMessage({ type: 'OFFSCREEN_STOP' }).catch(() => {});
       updateState({ status: STATES.IDLE, detail: 'Stopped', usage: null, cost: null });
       sendResponse({ ok: true });
       return false;
@@ -221,7 +286,84 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       sendResponse({ ...state });
       return false;
 
+    case 'PREFETCH':
+      if (!isRunning && !prefetchedData) {
+        prefetch(msg.tabId, msg.tabUrl);
+      }
+      sendResponse({ ok: true });
+      return false;
+
+    case 'OFFSCREEN_PAUSE':
+    case 'OFFSCREEN_RESUME':
+    case 'OFFSCREEN_SET_SPEED':
+    case 'OFFSCREEN_SEEK':
+      // Forward to offscreen document (no-op if offscreen doesn't exist)
+      return false;
+
+    case 'OFFSCREEN_GET_STATUS':
+      // Service worker already tracks state — respond directly
+      sendResponse({ playing: state.status === STATES.PLAYING, paused: state.status === STATES.PAUSED });
+      return false;
+
+    case 'CLEAR_AUDIO_CACHE':
+      clearCache()
+        .then(() => sendResponse({ ok: true }))
+        .catch(() => sendResponse({ ok: false }));
+      return true;
+
+    case 'OFFSCREEN_DONE':
+      updateState({ status: STATES.DONE, detail: 'All done!' });
+      return false;
+
+    case 'OFFSCREEN_ERROR':
+      sendError('PLAYBACK_ERROR', msg.message);
+      return false;
+
+    case 'OFFSCREEN_STATUS':
+      if (msg.playing) {
+        state.status = STATES.PLAYING;
+      } else if (msg.paused) {
+        state.status = STATES.PAUSED;
+        state.detail = 'Paused';
+      }
+      return false;
+
+    case 'OFFSCREEN_PROGRESS':
+      // Update detail with chunk info
+      if (msg.totalChunks > 1) {
+        state.detail = `Playing — part ${msg.currentChunk} of ${msg.totalChunks}`;
+      }
+      // Forward progress to popup
+      chrome.runtime.sendMessage({
+        type: 'OFFSCREEN_PROGRESS',
+        currentTime: msg.currentTime,
+        duration: msg.duration,
+        currentChunk: msg.currentChunk,
+        totalChunks: msg.totalChunks,
+      }).catch(() => {});
+      return false;
+
+    case 'OFFSCREEN_CACHED':
+      // Forward cache hit status to popup
+      chrome.runtime.sendMessage({ type: 'OFFSCREEN_CACHED', cached: true }).catch(() => {});
+      return false;
+
     default:
       return false;
+  }
+});
+
+// Keyboard shortcut handler
+chrome.commands.onCommand.addListener(async (command) => {
+  await ensureOffscreen();
+  if (command === 'toggle-pause') {
+    if (state.status === STATES.PAUSED) {
+      chrome.runtime.sendMessage({ type: 'OFFSCREEN_RESUME' }).catch(() => {});
+    } else if (state.status === STATES.PLAYING) {
+      chrome.runtime.sendMessage({ type: 'OFFSCREEN_PAUSE' }).catch(() => {});
+    }
+  } else if (command === 'stop-playback') {
+    chrome.runtime.sendMessage({ type: 'OFFSCREEN_STOP' }).catch(() => {});
+    updateState({ status: STATES.IDLE, detail: 'Stopped', usage: null, cost: null });
   }
 });

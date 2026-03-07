@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "ReadFlow",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Extract and narrate article content from webpages and PDFs using AI",
-  "permissions": ["activeTab", "storage", "scripting"],
+  "permissions": ["activeTab", "storage", "scripting", "offscreen"],
   "host_permissions": ["https://api.openai.com/*"],
   "background": {
     "service_worker": "background/service-worker.js",
@@ -21,5 +21,19 @@
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
+  },
+  "commands": {
+    "toggle-pause": {
+      "suggested_key": {
+        "default": "Alt+Shift+Space"
+      },
+      "description": "Toggle pause/resume playback"
+    },
+    "stop-playback": {
+      "suggested_key": {
+        "default": "Alt+Shift+S"
+      },
+      "description": "Stop playback"
+    }
   }
 }

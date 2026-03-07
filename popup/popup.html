@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src https://api.openai.com; media-src blob:; style-src 'self';">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self';">
   <title>ReadFlow</title>
   <link rel="stylesheet" href="popup.css">
 </head>
@@ -22,7 +22,18 @@
 
     <!-- Main View -->
     <div id="mainView">
-      <div id="statusBar" class="status-bar">Ready to read</div>
+      <div id="statusBar" class="status-bar">Ready</div>
+
+      <!-- Progress Bar -->
+      <div id="progressContainer" class="progress-container hidden">
+        <div class="progress-bar-track">
+          <div id="progressBarFill" class="progress-bar-fill"></div>
+        </div>
+        <div class="progress-time">
+          <span id="progressElapsed">0:00</span>
+          <span id="progressRemaining">-0:00</span>
+        </div>
+      </div>
 
       <div class="controls">
         <button id="playBtn" class="btn btn-primary">
@@ -39,12 +50,20 @@
         </button>
       </div>
 
-      <label class="quick-read-toggle">
-        <input type="checkbox" id="quickReadCheckbox">
-        <span>Quick Read (skip AI cleaning)</span>
-      </label>
+      <!-- Keyboard Shortcut Hints -->
+      <div class="shortcut-hints">Space to pause · Esc to stop</div>
 
-      <div class="playback-note">Keep this popup open during playback.</div>
+      <!-- Speed Chips -->
+      <div class="speed-chips" id="speedChips"></div>
+
+      <!-- Read Mode Toggles -->
+      <div class="mode-toggles">
+        <button class="mode-pill" id="quickReadPill" data-mode="quickRead">Quick Read</button>
+        <button class="mode-pill" id="summaryPill" data-mode="summary">Summary</button>
+      </div>
+
+      <!-- Cached Badge -->
+      <div id="cachedBadge" class="cached-badge hidden">Cached</div>
 
       <div id="costSummary" class="cost-summary hidden">
         <h3>Session Cost</h3>
@@ -92,6 +111,10 @@
       <div class="settings-actions">
         <button id="saveSettingsBtn" class="btn btn-primary">Save</button>
         <button id="cancelSettingsBtn" class="btn btn-secondary">Cancel</button>
+      </div>
+
+      <div class="cache-actions">
+        <button id="clearCacheBtn" class="btn btn-danger">Clear Audio Cache</button>
       </div>
     </div>
   </div>

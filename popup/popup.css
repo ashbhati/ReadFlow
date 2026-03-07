@@ -70,6 +70,37 @@ body {
   color: #2e7d32;
 }
 
+/* Progress Bar */
+.progress-container {
+  margin-bottom: 14px;
+}
+
+.progress-bar-track {
+  height: 6px;
+  background: #e0e0e0;
+  border-radius: 3px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: #1a73e8;
+  border-radius: 3px;
+  width: 0%;
+  transition: width 0.3s ease;
+  pointer-events: none;
+}
+
+.progress-time {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #888;
+  margin-top: 4px;
+}
+
 /* Controls */
 .controls {
   display: flex;
@@ -124,29 +155,85 @@ body {
   background: #f0d0d0;
 }
 
-/* Quick Read Toggle */
-.quick-read-toggle {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: #666;
-  cursor: pointer;
-  margin-bottom: 8px;
-  padding: 0 2px;
-}
-
-.quick-read-toggle input[type="checkbox"] {
-  margin: 0;
-  cursor: pointer;
-}
-
-/* Playback Note */
-.playback-note {
-  text-align: center;
+/* Shortcut Hints */
+.shortcut-hints {
   font-size: 11px;
   color: #999;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+/* Speed Chips */
+.speed-chips {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
   margin-bottom: 10px;
+}
+
+.speed-chip {
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  background: #f5f5f5;
+  color: #555;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.speed-chip:hover {
+  border-color: #bbb;
+}
+
+.speed-chip.active {
+  background: #1a73e8;
+  color: white;
+  border-color: #1a73e8;
+}
+
+/* Mode Pill Toggles */
+.mode-toggles {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.mode-pill {
+  flex: 1;
+  height: 30px;
+  border: 1.5px solid #ddd;
+  border-radius: 15px;
+  background: white;
+  color: #555;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mode-pill:hover {
+  border-color: #bbb;
+}
+
+.mode-pill.active {
+  background: #1a73e8;
+  color: white;
+  border-color: #1a73e8;
+}
+
+/* Cached Badge */
+.cached-badge {
+  display: inline-block;
+  background: #e8f5e9;
+  color: #2e7d32;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-bottom: 8px;
 }
 
 /* Cost Summary */
@@ -238,6 +325,15 @@ body {
   display: flex;
   gap: 8px;
   margin-top: 16px;
+}
+
+.cache-actions {
+  margin-top: 12px;
+}
+
+.cache-actions .btn {
+  flex: none;
+  width: 100%;
 }
 
 /* Utility */
