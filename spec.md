@@ -276,57 +276,104 @@ Mitigations:
 
 ---
 
-# 9. Future Improvements
+# 9. Roadmap
 
-## 9.1 Background Audio
-- Use Chrome's Offscreen Document API or Side Panel for persistent playback
-- Audio continues when popup closes
-- Requires robust message passing between contexts
+## P0 — Next Up
 
-## 9.2 Longer Content Support
-- For content exceeding 4,096 chars: chunk text and pre-fetch next audio while current plays
-- Seamless crossfade between chunks
-- No visible chunk UI — just continuous playback
+### 9.1 Background Audio (Offscreen Document)
+- Use Chrome's Offscreen Document API to move TTS playback out of the popup
+- Audio continues playing when the popup is closed
+- Popup reconnects to in-progress playback when reopened
+- Requires port-based messaging between popup ↔ offscreen document
 
-## 9.3 Backend Architecture
-- Lightweight API proxy to hide API keys
-- Per-user rate limits and usage quotas
-- Centralized logging and analytics
-- SaaS monetization path
+### 9.2 Summary Mode
+- "Give me a 30-second summary" option
+- GPT condenses the article into a short narration-ready summary before TTS
+- Useful for skimming / deciding whether to read the full article
+- Adds a toggle or button in the popup alongside Quick Read
 
-## 9.4 Security Enhancements
-- Encrypted key storage
-- Secure vault integration
-- Request signing and throttling
-- Token usage caps
+### 9.3 Progress Indicator
+- Show a time-based progress bar during playback
+- Use `audio.currentTime` and `audio.duration` (available after MSE `endOfStream` or for blob playback)
+- Display elapsed / remaining time
+- Visual progress bar in the popup UI
 
-## 9.5 Playback Enhancements
-- Skip forward/back
-- Playback speed control
-- Sentence-level seeking
-- Highlight text while reading
-- Bookmark sections
+### 9.4 Playback Speed Control
+- Add a speed selector or slider: 0.75x, 1x, 1.25x, 1.5x, 2x
+- Uses `audio.playbackRate` — trivial to implement
+- Persist the user's preferred speed in `chrome.storage.local`
 
-## 9.6 PDF Improvements
-- OCR support for scanned PDFs
-- Layout-aware summarization
-- Academic paper mode (abstract-first reading)
+### 9.5 Long-Form Reading (Text Chunking)
+- For content exceeding 4,096 TTS chars: split text into chunks at sentence boundaries
+- Queue multiple TTS calls, pre-fetching the next chunk while the current one plays
+- Seamless back-to-back playback with no gap between chunks
+- Cost display aggregates across all chunks
 
-## 9.7 Narration Enhancements
-- Adjustable speed
-- Tone styles (neutral, academic, conversational)
-- Podcast-style summary mode
+### 9.6 Offline Playback (Audio Caching)
+- Cache generated audio in IndexedDB, keyed by URL + content hash
+- Allow re-listening to previously narrated articles without making new API calls
+- "Cached" indicator in the popup when a page has been read before
+- Manual cache clear option in settings
 
-## 9.8 Local TTS Option
-- Web Speech API fallback (free, lower quality)
-- On-device TTS engines
-- Hybrid: local for preview, cloud for final
+### 9.7 Keyboard Shortcuts
+- `Space` — Pause / Resume
+- `Escape` — Stop
+- Register via Chrome Commands API for global shortcuts (works without popup focused)
+- Configurable key bindings in settings (future)
 
-## 9.9 Agentic Features
-- Ask questions about the article
-- Summarize specific sections
-- Explain equations
-- Voice command control
+### 9.8 Offscreen Document Architecture
+- Technical prerequisite for background audio (9.1)
+- Create offscreen document with `audio` reason
+- Move `Audio` element and MSE streaming into the offscreen context
+- Popup sends play/pause/stop commands via `chrome.runtime.sendMessage`
+- Offscreen document sends status/progress updates back
+
+### 9.9 Retry with Exponential Backoff
+- For transient errors (429 rate limit, 5xx server errors)
+- Retry up to 3 times with exponential delay (1s, 2s, 4s)
+- Show "Retrying..." in the status bar during retries
+- Applies to both Chat and TTS API calls
+
+### 9.10 Pre-fetch TTS on Popup Open
+- Begin content extraction when the popup opens (before Play is clicked)
+- Optionally start the GPT cleaning step eagerly
+- When user clicks Play, TTS starts immediately with already-cleaned text
+- Reduces perceived latency by 1–3 seconds
+
+### 9.11 Fix Extension Icon
+- Replace current icon with a "Play" button icon (triangle) that clearly communicates the extension's purpose
+- Update all sizes: 16x16, 48x48, 128x128
+- Clean, minimal design that works on both light and dark Chrome themes
+
+## P2 — Future
+
+### 9.12 Remember Voice Per Site
+- Auto-save the last-used voice for each domain
+- When revisiting a site, default to the voice used last time
+- Override available in settings dropdown
+
+### 9.13 Highlight-to-Read (Context Menu)
+- Select text on a page, right-click → "Read with ReadFlow"
+- Sends only the selected text to TTS (skips full-page extraction)
+- Registers a Chrome context menu item via `chrome.contextMenus`
+
+### 9.14 Multi-Language Support
+- Auto-detect page language via `document.documentElement.lang` or GPT detection
+- Adjust the extraction prompt for the detected language
+- OpenAI TTS supports many languages — pass through automatically
+- Language indicator in the popup
+
+### 9.15 Reading List / Queue
+- Save articles to a "read later" list
+- Batch-listen: play articles back-to-back like a personal podcast feed
+- Queue management UI in a side panel or dedicated page
+- Integrates with audio caching (9.6)
+
+### 9.16 Usage Dashboard
+- Track cumulative cost, articles read, time listened across sessions
+- Stored in `chrome.storage.local`
+- Simple dashboard accessible from settings or a dedicated page
+- Daily/weekly/monthly breakdown
 
 ---
 
